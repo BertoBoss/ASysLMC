@@ -17,5 +17,6 @@ int main(){
     cout << args.at(i) << "\n";
   Term q = *t.get_parent();
   cout << q.get_name() << "\n";
+  cout << t.to_string() << "\n";
   return 0;
 }
