@@ -1,6 +1,6 @@
-#include "Term.h"
 #include <iostream>
 #include <stdio.h>
+#include "Term.h"
 
 int main(){
   Term t;
