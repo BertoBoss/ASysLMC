@@ -41,7 +41,7 @@ Term* Term::get_parent(){
 }
 
 
-string Term::to_string(){
+string Term::to_string() const{
   string s = name + "(";
   for(int i = 0; i<args.size(); i++){
     if(i!=args.size()-1)
@@ -50,4 +50,11 @@ string Term::to_string(){
       s += args.at(i) + ")";
   }
   return s;
+}
+
+bool Term::operator == (const Term &t){
+  string s = t.to_string();
+  if(strcmp(this->to_string().c_str(), s.c_str())==0)
+    return true;
+  return false;
 }

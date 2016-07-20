@@ -5,8 +5,13 @@
 #include <iostream>
 #include <fstream>
 #include <stdlib.h>
+#include <map>
+#include <algorithm>
 
 using namespace std;
+
+map <string, Term> visited;
+map <string, vector<Term>> search_terms; 
 
 //treats parameters
 string parse_params(int argc, char* argv[]){
@@ -142,13 +147,85 @@ Clause* build_clause(vector<string> tokens){
   return bottom;
 }
 
+vector<Term> get_terms(string var, vector<Term> ts){
+  vector<Term> aux;
+  for(int i = 0; i<ts.size(); i++){
+    Term t = ts.at(i);
+    vector<string> t_args = t.get_args();
+    if((find(t_args.begin(), t_args.end(), var) != t_args.end()) && (visited.find(t.to_string()) == visited.end())){
+      aux.push_back(t);
+      visited[t.to_string()] = t;
+    }
+  }
+  return aux;
+}
+
+void init_search_terms(Clause *bottom){
+  Term h = bottom->get_head();
+  vector<Term> ts = bottom->get_terms();
+  vector<string> h_args = h.get_args();
+  for(int i = 0; i<h_args.size(); i++){
+    vector<Term> i_terms = get_terms(h_args.at(i),ts);
+    search_terms[h_args.at(i)] = i_terms;
+  }
+}
+
+vector<Term> check_intersection(){
+  vector<Term> aux;
+  for(auto it = search_terms.begin(); it != search_terms.end(); it++){
+    string key = it->first;
+    //cout << "KEY:" <<key << endl;
+    vector<Term> terms = it->second;
+    for(auto it2 = search_terms.begin(); it2!= search_terms.end(); it2++){
+      string key2 = it2->first;
+      //cout <<"KEY2:" <<key2 << endl;
+      vector<Term> terms2 = it2->second;
+      if(strcmp(key.c_str(),key2.c_str())!=0){
+	//cout << "Diifs " << key << "     " << key2 << endl;
+	for(int i = 0; i<terms.size(); i++){
+	  Term t = terms.at(i);
+	  //cout << "T: " << t.to_string() << endl;
+	  vector<string> t_args = t.get_args();
+	  for(int j = 0; j<t_args.size(); j++){
+	    string var = t_args.at(j);
+	    for(int k = 0; k<terms2.size(); k++){
+	      Term t2 = terms2.at(k);
+	      //cout << "T2: " << t2.to_string() << endl;
+	      vector<string> t2_args = t2.get_args();
+	      if(find(t2_args.begin(), t2_args.end(), var) != t2_args.end()){
+		//cout << "FOUND" << endl;
+		if(aux.size()==0){
+		  aux.push_back(t);
+		}
+		if(find(aux.begin(), aux.end(), t) == aux.end()){
+		  //cout << "NOT IN AUX " << t.to_string() << endl;
+		  aux.push_back(t);
+		}
+		if(find(aux.begin(), aux.end(), t2) == aux.end()){
+		  //cout << "NOT IN AUX " << t2.to_string() << endl;
+		  aux.push_back(t2);
+		}
+	      }
+	    }
+	  }
+	}
+	if(aux.size()>0)
+	  return aux;
+      }
+    }
+  }
+  return aux;
+}
+
 int main(int argc, char* argv[]){
+  
+  //start of parsing
   string file = parse_params(argc, argv);
 
   string b_text = open_file(file);
 
   if(b_text.compare("")==0){
-    cout << "File is empty. Aborting exec. \n";
+    cout << "File is empty. Aborting exec.\n";
     exit(1);
   }
 
@@ -156,9 +233,29 @@ int main(int argc, char* argv[]){
 
   Clause * bottom = build_clause (tokens);
   
-  cout << "Parsing fase completed.\nThe result is: ";
+  cout << "Parsing completed.\nThe result is: ";
   
   cout << bottom->to_string() << endl;
 
+  //start of search
+
+  init_search_terms(bottom);
+
+  vector<Term> intersect = check_intersection();
+
+  //cout << intersect.size() << endl;
+
+  if(intersect.size() > 0){
+
+    cout << "Rule found in step 0.\nPrinting rule... \n";
+
+    //printing prolog like missing...
+    for(int i = 0; i<intersect.size(); i++)
+      cout << intersect.at(i).to_string() << endl;
+  }
+  //bidirected search
+
+  
+  
   return 0;
 }

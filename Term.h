@@ -5,6 +5,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <cstring>
 
 using namespace std;
 
@@ -26,7 +27,9 @@ public:
   vector<string> get_args();
   void set_parent(Term *p);
   Term* get_parent();
-  string to_string();
+  string to_string() const;
+
+  bool operator == (const Term &t);
 };
 
 #endif
