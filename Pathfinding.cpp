@@ -87,8 +87,6 @@ int cases = 0;
 double coverage_total_time = 0;
 double pathlength_total_time = 0;
 vector<string> positives_f;
-vector<string> positives_f_original;
-vector<string> negatives_original;
 vector<int> positive_index;
 
 
@@ -451,45 +449,6 @@ void print_hg_dfs(){
   cout << "END OF DFS VISIT" << endl;
 }
 
-vector<string> covers_interval(Clause c,string filec){
-  ofstream filet,fileb;  
-
-  filet.open("theos.txt", ofstream::out | ofstream::trunc);
-
-  filet << c.to_string() << endl;
-
-  fileb.open(filec,ofstream::out | ofstream::trunc);
-
-  vector<string> c_covers = c.get_covers();
-
-  vector<string> covered;
-
-  if(c_covers.size()==0)
-    return covered;
-  
-  for(int i = 0; i<c_covers.size(); i++)
-    fileb << c_covers[i] << endl;
-  
-  PlCall("rdhyp('theos.txt').");
-
-  PlCall("covers('covers.txt').");
-
-  ifstream coverpositive ("covers.txt");
-  
-  string line;
-  while(getline (coverpositive, line)){
-    covered.push_back(line);
-  }
-  covered.pop_back();
-  filet.close();
-  coverpositive.close();
-
-  c.set_covers(covered);
-  
-  return covered;
-  
-}
-
 vector<string> covers(Clause c){
   ofstream file;
   file.open("theos.txt", ofstream::out | ofstream::trunc);
@@ -513,46 +472,6 @@ vector<string> covers(Clause c){
   return covered;
 }
 
-
-vector<string> coversn_interval(Clause c,string filec){
-  ofstream filet,fileb;  
-
-  filet.open("theosn.txt", ofstream::out | ofstream::trunc);
-
-  filet << c.to_string() << endl;
-
-  fileb.open(filec,ofstream::out | ofstream::trunc);
-
-  vector<string> c_coversn = c.get_coversn();
-
-  vector<string> covered;
-
-  if(c_coversn.size()==0)
-    return covered;
-  
-  for(int i = 0; i<c_coversn.size(); i++)
-    fileb << c_coversn[i] << endl;
-  
-  PlCall("rdhyp('theos.txt').");
-
-  PlCall("coversn('coversn.txt').");
-
-  ifstream covernegative ("coversn.txt");
-  
-  string line;
-  while(getline (covernegative, line)){
-    covered.push_back(line);
-  }
-  covered.pop_back();
-  filet.close();
-  covernegative.close();
-
-  c.set_coversn(covered);
-
-  fileb.close();
-  return covered;
-  
-}
 
 vector<string> coversn(Clause c){
   ofstream file;
@@ -907,7 +826,7 @@ void remove_clauses_covered(Clause c){
   //cout << positive_index.size() << endl;
 }
 
-vector<Clause> transform_hypergraph(string filecov,string filecovn){
+vector<Clause> transform_hypergraph(){
   int temp_max = 0;
   vector<vector<Node*>> max_clauses_tmp;
   Node* root = hyperg -> get_root();
@@ -1006,13 +925,6 @@ vector<Clause> transform_hypergraph(string filecov,string filecovn){
 
   clock_t cov_start,cov_end,pathl_start,pathl_end;
   double cov_time, pathl_time;
-
-  for(int j = 0; j<to_expand.size(); j++){
-    vector<string> covers_clause = covers(to_expand[j]);
-    vector<string> coversn_clause = coversn(to_expand[j]);
-    to_expand[j].set_covers(covers_clause);
-    to_expand[j].set_coversn(coversn_clause);
-  }
   
   while(to_expand.size()>0){
     gen_c++;
@@ -1026,8 +938,8 @@ vector<Clause> transform_hypergraph(string filecov,string filecovn){
     int cand_pos = -1;
 
     cov_start = clock();
-    vector<string> positive_cover = covers_interval(hyper_aux,filecov);
-    vector<string> negative_cover = coversn_interval(hyper_aux,filecovn);
+    vector<string> positive_cover = covers(hyper_aux);
+    vector<string> negative_cover = coversn(hyper_aux);
     int cov = positive_cover.size() - negative_cover.size();
     cov_end = clock();
     cov_time = (double) (cov_end - cov_start) / CLOCKS_PER_SEC;
@@ -1051,13 +963,13 @@ vector<Clause> transform_hypergraph(string filecov,string filecovn){
       Clause c_tmp = hyper_aux;
       new_hyp.push_back(cands[i]);
       c_tmp.add_term(cands[i]->get_term());
-      /*cout << "EVALUATING: " << endl;
+      /*      cout << "EVALUATING: " << endl;
       for(int j = 0; j<new_hyp.size(); j++)
 	cout << new_hyp[j]->get_term().to_string() << " ";
 	cout << endl;*/
       cov_start = clock();
-      vector<string> positive_cover = covers_interval(c_tmp,filecov);
-      vector<string> negative_cover = coversn_interval(c_tmp,filecovn);
+      vector<string> positive_cover = covers(c_tmp);
+      vector<string> negative_cover = coversn(c_tmp);
       int cov = positive_cover.size() - negative_cover.size();
       cov_end = clock();
       cov_time = (double) (cov_end - cov_start) / CLOCKS_PER_SEC;
@@ -1574,15 +1486,12 @@ int main(int argc, char* argv[]){
   
   string text_bottom;
   string file;
-  string fileaux;
   
   PlEngine e (ac,av);
 
   for(int i = 0; i<argc; i++){
-    if(strcmp(argv[i],"-f")==0){
+    if(strcmp(argv[i],"-f")==0)
       file = argv[++i];
-      fileaux = file + "aux";
-    }
     if(strcmp(argv[i],"-t")==0)
       threshold = (double) atoi(argv[++i]);
     if(strcmp(argv[i],"-h")==0)
@@ -1592,20 +1501,15 @@ int main(int argc, char* argv[]){
   }
   
   ifstream posFile;
-  ofstream posFileAux;
   string dotf = file + ".f";
-  string dotfaux = fileaux + ".f";
   posFile.open(dotf, ios::in);
-  posFileAux.open(dotfaux,ofstream::out | ofstream::trunc);
   string linef;
-  if(posFile.is_open() && posFileAux.is_open()){
+  if(posFile.is_open()){
     while(getline(posFile,linef)){
       //cout << "LINEF: " << linef << endl;
       positives_f.push_back(linef);
-      positives_f_original.push_back(linef);
       positives++;
       positive_index.push_back(positives);
-      posFileAux << linef << endl;
     }
   }
   else{
@@ -1615,19 +1519,13 @@ int main(int argc, char* argv[]){
   //cout << positives_f.size() << endl;
   //cout << positive_index.size() << endl;
   ifstream negFile;
-  ofstream negFileAux;
   string dotn = file + ".n";
-  string dotnaux = fileaux + ".n";
   negFile.open(dotn, ios::in);
-  negFileAux.open(dotnaux,ofstream::out | ofstream::trunc);
   string linen;
 
-  if(negFile.is_open() && negFileAux.is_open()){
-    while(getline(negFile,linen)){
+  if(negFile.is_open()){
+    while(getline(negFile,linen))
       negatives++;
-      negFileAux << linen << endl;
-      negatives_original.push_back(linen);
-      }
   }
   else{
     cerr << "No negative facts given" << endl;
@@ -1635,24 +1533,19 @@ int main(int argc, char* argv[]){
   }
   
   ifstream modeFile;
-  ofstream modeFileAux;
   string dotb = file + ".b";
-  string dotbaux = fileaux + ".b";
   modeFile.open(dotb, ios::in);
-  modeFileAux.open(dotbaux,ofstream::out | ofstream::trunc);
-
   string line;
 
   vector<string> mode_lines;
   
-  if(modeFile.is_open() && modeFileAux.is_open()){
+  if(modeFile.is_open()){
     while(getline(modeFile,line)){
       size_t pos = line.find("mode");
       if(pos!=string::npos && line.at(0)==':'){
 	line.erase(remove(line.begin(),line.end(),' '),line.end());
 	mode_lines.push_back(line);
       }
-      modeFileAux << line << endl;
     }
   }
   else{
@@ -1690,7 +1583,6 @@ int main(int argc, char* argv[]){
       }
     }
     positives_f = new_pos_f;
-    positives_f_original = new_pos_f;
     positive_index = new_pos_index;
   }
   
@@ -1699,7 +1591,7 @@ int main(int argc, char* argv[]){
     //generating bottom clause
     try{
       PlCall("[test].");
-      string read = "read_all(" + fileaux + ")";
+      string read = "read_all(" + file + ")";
       PlCall(read.c_str());
       string s;
       clock_t sat_start = clock();
@@ -1774,17 +1666,14 @@ int main(int argc, char* argv[]){
     //hypergraph transformation
     
     clock_t search_start = clock();
-    clauses = transform_hypergraph(dotfaux,dotnaux);
-    cout << "NUMA DE SAIDA" << endl;
+    clauses = transform_hypergraph();
     clock_t search_end = clock();
     double search_time = (double) (search_end - search_start) / CLOCKS_PER_SEC;
     //cout << "Search performed in: " << search_time << endl;
     search_total_time += search_time;
     //cout << "SIZE: " << positives_f.size() << endl;
-    cout << "OLA" << endl;
     for(int k = 0; k<clauses.size(); k++)
       remove_clauses_covered(clauses[k]);
-    cout << "OIII" << endl;
     //cout << "SIZE2: " << positives_f.size() << endl;
     //cout << max_score << endl;
     /*
@@ -1808,22 +1697,7 @@ int main(int argc, char* argv[]){
     cout << "finished with: " << exec_time2 << endl;
     delete hyperg;
     delete root;*/
-    ofstream posFA,negFA;
-    string dotfaux = fileaux + ".f";
-    string dotnaux = fileaux + ".n";
-    posFA.open(dotfaux, ofstream::out | ofstream::trunc);
-    negFA.open(dotnaux,ofstream::out | ofstream::trunc);
-    string linef;
-    if(posFA.is_open()){
-      for(int j = 0; j<positives_f_original.size(); j++)
-	//cout << "LINEF: " << linef << endl;
-	posFA << positives_f_original[j] << endl;
-    }
-    if(negFA.is_open()){
-      for(int j = 0; j<negatives_original.size(); j++)
-	negFA << negatives_original[j] << endl;
-    }
-  }
+  }  
 
   
   clock_t end_main= clock();
@@ -1867,6 +1741,7 @@ int main(int argc, char* argv[]){
 }
 
 /*falta:
+alterar nome do ficheiro (criar copias de .f, .n e .b com sufixo tmp)
 modificar constantemente .n e .f
 actualizar dinamicamente covers e coversn de cada hipótese candidata
 */
